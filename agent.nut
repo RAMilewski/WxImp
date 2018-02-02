@@ -1,15 +1,12 @@
 // WxImp Agent Code
-// Version 0.9 (build 525)
+// Version 0.9.3
 // Copyright 2017 - Richard Milewski
 // Released under the Mozilla Public License v2.0
 // https://www.mozilla.org/en-US/MPL/2.0/
 // 
 //
 
-minVoltage <- 3.27;   // Voltage at which battery check notice appears
-
-logString <- "";  // ...and odd little hack to enable selective logging within a function.
-logThis <- "no logging"   // only callers listed in this string will be logged by logPerhaps().
+minVoltage <- 3.25;   // Voltage at which battery check notice appears
 
 wind <- {};
 wind.current <- 0;
@@ -22,7 +19,7 @@ wind.weighted <- 0;
 wind.history <- [];
 wind.history.push(0);
 
-gust <- {};
+gust <- {}; 
 gust.fiveMin <- null;
 gust.oneHour <- null;
 gust.twelveHour <- null;
@@ -162,13 +159,8 @@ function historyStart(span, caller) {
     } else {
         local i = timeStamps.len() - 1;
         while ((now - timeStamps[i]) < (span * 60)) {
-            
-            logString = "HistoryStart - " + caller + ":  " + i + " | " + now + " | " + timeStamps[i] + " | " + (now - timeStamps[i])  + " seconds | " +  span + " | " ;
-            logPerhaps(logString, caller);
             i--;
         }
-        logString = "HistoryStart - " + caller + ":  " + i + " | " + now + " | " + timeStamps[i] + " | " + (now - timeStamps[i])  + " seconds | " +  span + " | " ;
-        logPerhaps(logString, caller);    
         return(i);
     }
 }
@@ -278,8 +270,9 @@ function manageReading(data) {
     temp.history.push(data.temp);
     humidity.history.push(data.humidity);
     pressure.history.push(data.pressure);
-    wind.history.push(data.wind.max);
+    
     wind.current = data.wind.max;
+    wind.history.push(wind.current);
     wind.fiveMin = windAvg(5);
     gust.fiveMin = windGust(5);
     wind.oneHour = windAvg(60);
@@ -306,7 +299,8 @@ function manageReading(data) {
     // Create HTML strings
     local metatag = "<meta http-equiv='refresh' content='"+ refresh + "' >";
     
-    local dataDiv =  "<p><b>Temperature: </b> " + format("%.1f", data.temp) + "&deg;C &nbsp; " + format("%.1f", Fahrenheit(data.temp)) + "&deg;F </p>";
+    local dataDiv =  "<p><b>" + data.stationName + "</b></p>";
+          dataDiv += "<p><b>Temperature: </b> " + format("%.1f", data.temp) + "&deg;C &nbsp; " + format("%.1f", Fahrenheit(data.temp)) + "&deg;F </p>";
           // dataDiv += "<p><b>Temperature 2: </b> " + format("%.1f", data.temp2) + "&deg;C &nbsp; " + format("%.1f", Fahrenheit(data.temp2)) + "&deg;F </p>";
          
           if (historySpan > (temp.timespan * 60)) { 
@@ -316,7 +310,8 @@ function manageReading(data) {
           dataDiv += "<p><b>Humidity: </b> "    + format("%.1f", data.humidity) + "%</p>";
           dataDiv += "<p><b>Dew Point: </b> "   + format("%.1f", humidity.dewpoint) + "&deg;C &nbsp; " + format("%.1f", Fahrenheit(humidity.dewpoint)) + "&deg;F </p>";
           dataDiv += "<p><b>Cumulus Cloudbase: </b> " + humidity.cloudbase + " feet. (calculated) </p>";
-          dataDiv += "<p><b>Pressure: </b> "    + format("%.1f", data.pressure) + " mb  - " + format("%.2f", data.pressure * 0.02953) + " inches Hg " + pressureTrend(data.pressure) + "</p>";
+          dataDiv += "<p><b>Pressure: </b> "    + format("%.1f", data.pressure) + " mb  - " + format("%.2f", data.pressure * 0.02953) + " inches Hg </p>";
+        //  dataDiv += "<p><b>Pressure (MSL): </b> "    + format("%.1f", data.mslPressure) + " mb  - " + format("%.2f", data.mslPressure * 0.02953) + " inches Hg " + pressureTrend(data.pressure) + "</p>";
           dataDiv += "<p class='centered'><b>Experimental wind data is, as yet, uncalibrated.</b></p>";
           dataDiv += "<p><b>Wind: </b>" + wind.current + "</p>";
           dataDiv += "<p><b>Wind avg/gust: </b> 5 min: " + wind.fiveMin + gust.fiveMin + " - 1 Hour: " + wind.oneHour + gust.oneHour + " </p>"; 
@@ -324,7 +319,7 @@ function manageReading(data) {
           dataDiv += "<p><b>Battery: </b> " + format("%.2f", data.voltage) + " volts ";
           if (data.voltage < minVoltage) { dataDiv += "<b> CHECK BATTERIES ! </b>" };
           dataDiv += "</p>";
-          dataDiv += "<p><b> WiFi Signal Strength: </b> " + data.rssi + " db </p>";
+          dataDiv += "<p><b>" + data.ssid + " WiFi Signal Strength: </b> " + data.rssi + " db </p>";
           dataDiv += "<p><b>Sampled at: </b>" + format("%02u",now.hour) + ":" + format("%02u",now.min) + ":" + format("%02u",now.sec) + " UTC ";
           dataDiv += weekday[now.wday] + " " + month[now.month] + now.day + ", " + now.year + "</p>";  
           dataDiv += "<p>This page refreshes after " +refresh + " seconds.</p>";   
@@ -332,15 +327,22 @@ function manageReading(data) {
     html = html_head1 + metatag + html_head2 + html_body1 + dataDiv + html_body2;
     
     local dataLog = "\n";
-    dataLog += "Time: " + format("%05d", historySpan) + " sec. " + timeStamps.len() + " timestamps\n";
-    dataLog += "Wind: " + format("%05d", wind.current) + "      " + wind.history.len() + " samples\n";
-    dataLog += "Temp: " + format("%.1f", data.temp) + "°C     " + temp.history.len() + " samples\n";
-    dataLog += "RH:   " + format("%.1f", data.humidity) + "%      " + humidity.history.len() + " samples\n";
-    dataLog += "Baro: " + format("%.1f", data.pressure) + " mb  " + pressure.history.len() + " samples\n";
-    dataLog += "Vin:  " + format("%.2f", data.voltage) + " volts.\n";
-    dataLog += "1 hour avg/gust: " + wind.oneHour + gust.oneHour + "\n";
-    dataLog += "12 hour avg/gust: " + wind.twelveHour + gust.twelveHour + " ";
-    dataLog += "24 hour avg/gust: " + wind.oneDay + gust.oneDay + "\n";
+    dataLog += data.stationName + "\n";
+    dataLog += "Time:  " + format("%05d", historySpan) + " sec. " + timeStamps.len() + " timestamps\n";
+    dataLog += "Wind:  " + format("%03d", wind.current) + "        " + wind.history.len() + " samples\n";
+    dataLog += "Temp:  " + format("%.2f", data.temp) + "°C    " + temp.history.len() + " samples\n";
+    dataLog += "Temp2: " + format("%.2f", data.temp2) + "°C    " + temp.history.len() + " samples\n";
+    dataLog += "RH:    " + format("%.1f", data.humidity) + "%      " + humidity.history.len() + " samples\n";
+    dataLog += "Baro:  " + format("%.1f", data.pressure) + " mb  " + pressure.history.len() + " samples\n";
+    dataLog += "MSLP:  " + format("%.1f", data.mslPressure) + " mb \n";
+    dataLog += "Vin:   " + format("%.2f", data.voltage) + " volts.\n";
+    dataLog += "SSID:  " + data.ssid + "\n";
+    dataLog += "RSSI:  " + data.rssi + " db\n";
+    dataLog += "Cycle:  " + format("%2d", refresh) + " seconds\n";
+    dataLog += "Memory: " + format("%03d", (imp.getmemoryfree() / 1024)) + " K free.\n";
+    //dataLog += "1 hour avg/gust: " + wind.oneHour + gust.oneHour + "\n";
+    //dataLog += "12 hour avg/gust: " + wind.twelveHour + gust.twelveHour + " ";
+    //dataLog += "24 hour avg/gust: " + wind.oneDay + gust.oneDay + "\n";
     dataLog += "\n";
    
    server.log(dataLog);

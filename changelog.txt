@@ -1,0 +1,8 @@
+Version 0.9
+
+	Initial GitHub commit
+	
+Version 0.9.1
+
+	Refactored code to use the Connection Manager library
+	Modified the Anemometer sampler to yield to impOS

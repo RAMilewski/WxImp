@@ -1,4 +1,15 @@
-// WxImp Device Code
+
+// Device code to put calibration data into persistent storage in the Imp
+
+#require "HTS221.device.lib.nut:2.0.1"
+#require "LPS22HB.class.nut:1.0.0"
+#require "WS2812.class.nut:2.0.2"
+
+// Create one case for each WxImp you wish to configure.
+
+imp.enableblinkup(true);
+
+deviceid <- hardware.getdeviceid();// WxImp Device Code
 // Version 0.9.3
 // Copyright 2017 - Richard Milewski
 // Released under the Mozilla Public License v2.0
@@ -7,9 +18,6 @@
 // Removed deprecated network calls, replaced with net.info()
 // Moved calibration data to persistant storage in the Imp
 
-#require "HTS221.device.lib.nut:2.0.1"
-#require "LPS22HB.class.nut:1.0.0"
-#require "WS2812.class.nut:2.0.2"
 
 // Define constants
 const sampleTime = 5; // The length of time the anemometer is sampled.
@@ -212,3 +220,82 @@ function sampleData()
    
     
     
+blobformat <- null;
+
+switch (deviceid) {
+    case  "Imp Device ID Goes Here":    // We use setting the config based on device ID.    
+        blobformat = "0.9.3";           // This must match the format in the WxImp code (Currently the WxImp revision)
+        sleepTime <- 60;                // Time between readings.
+        stationName <- "A WxImp"        // Station Name
+        windZero <- 127;                // The value reported when the anemometer is still
+        deviceLat <- 37.335369;         // Latitude of station (Useful for joining weather reporting networks)
+        deviceLon <- -121.886938;       // Longitude of station
+        deviceElev <- 46;               // Elevation in Meters 
+        temp1correction <- -1.3;        // Temp sensor 1 correction  (deg. C)
+        temp2correction <- -5.6;        // Temp sensor 2 correction  (deg. C)       
+        RHcorrection <- -23;            // Humidity sensor correction (%RH)
+        pressureCorrection <- 2.1;     // Barometer sensor correction (hPa/mb)
+                                             
+    break
+    
+    case  "238e52e22c4d8aee":
+        blobformat = "0.9.3"
+        sleepTime <- 60;
+        stationName <- "Yellow WxImp";
+        windZero <- 130;
+        deviceLat <- 37.335369;         
+        deviceLon <- -121.886938;
+        deviceElev <- 46;   
+        temp1correction <- -0.4;
+        temp2correction <- 0;
+        RHcorrection <- -22.5;
+        pressureCorrection <- -2.9;
+        
+    break 
+    
+    case  "238e52e22c4d8aee":
+        blobformat = "0.9.3"
+        sleepTime <- 60;
+        stationName <- "Green WxImp";
+        windZero <- 130;
+        deviceLat <- 37.335369;         
+        deviceLon <- -121.886938;
+        deviceElev <- 46;   
+        temp1correction <- -0.4;
+        temp2correction <- 0;
+        RHcorrection <- -22.5;
+        pressureCorrection <- -2.9;
+        
+    break 
+}
+
+
+if (blobformat) {
+    local config = blob();
+    config.writen(deviceid.len(),'b');
+    config.writestring(deviceid);
+    config.writen(blobformat.len(), 'b');
+    config.writestring(blobformat);
+    config.writen(sleepTime, 's');
+    config.writen(stationName.len(),'b');
+    config.writestring(stationName);
+    config.writen(windZero, 's');
+    config.writen(deviceLat, 'f');
+    config.writen(deviceLon, 'f');
+    config.writen(deviceElev, 's');
+    config.writen(temp1correction, 'f');
+    config.writen(temp2correction, 'f');
+    config.writen(RHcorrection, 'f');
+    config.writen(pressureCorrection, 'f');
+
+    imp.setuserconfiguration(config);
+    server.log ("\n\nConfiguration saved for device " + deviceid + "\n\n");
+} else {
+    server.log("\nThere is no configuration information for this device.");
+    server.log("\nThe device id for this device is: " + deviceid );
+    imp.setuserconfiguration(null);
+    server.log("\nConfiguration storage cleared.\n\n");
+}
+
+
+
